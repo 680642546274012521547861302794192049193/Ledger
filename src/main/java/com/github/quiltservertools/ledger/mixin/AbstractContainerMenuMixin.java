@@ -67,13 +67,16 @@ public abstract class AbstractContainerMenuMixin implements HandlerWithContext {
     @Inject(method = "removed", at = @At(value = "RETURN"))
     private void ledgerCloseScreenLogChanges(Player player, CallbackInfo ci) {
         if (!player.level().isClientSide() && pos != null) {
-            for (var pair : changedStacks.keySet()) {
+            for (Map.Entry<ItemData, Integer> entry : changedStacks.entrySet()) {
+                var pair = entry.getKey();
                 ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.wrapAsHolder(pair.getItem()), 1);
                 stack.setTag(pair.getChanges());
                 if (stack.isEmpty()) {
                     continue;
                 }
-                int count = changedStacks.get(pair);
+                Integer countBox = entry.getValue();
+                if (countBox == null || countBox == 0) continue;
+                int count = countBox;
                 int countAbs = Math.abs(count);
                 List<ItemStack> splitStacks = new ArrayList<>();
                 while (countAbs > 0) {
@@ -116,19 +119,11 @@ public abstract class AbstractContainerMenuMixin implements HandlerWithContext {
         if (old.isEmpty() && !itemStack.isEmpty()) {
             // Add item
             var key = new ItemData(itemStack.getItem(), itemStack.getTag());
-            if (changedStacks.containsKey(key)) {
-                changedStacks.put(key, changedStacks.get(key) + itemStack.getCount());
-            } else {
-                changedStacks.put(key, itemStack.getCount());
-            }
+            changedStacks.put(key, changedStacks.getOrDefault(key, 0) + itemStack.getCount());
         } else if (!old.isEmpty() && itemStack.isEmpty()) {
             // Remove item
             var key = new ItemData(old.getItem(), old.getTag());
-            if (changedStacks.containsKey(key)) {
-                changedStacks.put(key, changedStacks.get(key) - old.getCount());
-            } else {
-                changedStacks.put(key, -old.getCount());
-            }
+            changedStacks.put(key, changedStacks.getOrDefault(key, 0) - old.getCount());
         } else if (!old.isEmpty() && !itemStack.isEmpty()) {
             // Item changed
             onStackChanged(old, ItemStack.EMPTY, pos);
